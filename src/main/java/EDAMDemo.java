@@ -35,7 +35,7 @@ import java.security.MessageDigest;
 import java.util.Iterator;
 import java.util.List;
 
-public class EDAMDemo {
+class EDAMDemo {
 
     /***************************************************************************
      * You must change the following values before running this sample code *
@@ -47,11 +47,6 @@ public class EDAMDemo {
     // https://sandbox.evernote.com/api/DeveloperToken.action
     private static final String AUTH_TOKEN = "S=s1:U=933a0:E=1609de4739a:C=15946334410:P=1cd:A=en-devtoken:V=2:H=8ea58969963f4a6dd3c3d63bc9380993";
 
-    /***************************************************************************
-     * You shouldn't need to change anything below here to run sample code *
-     ***************************************************************************/
-
-    private UserStoreClient userStore;
     private NoteStoreClient noteStore;
     private String newNoteGuid;
 
@@ -104,11 +99,13 @@ public class EDAMDemo {
      * authenticate with the Evernote web service. All of this code is boilerplate
      * - you can copy it straight into your application.
      */
-    public EDAMDemo(String token) throws TException, EDAMSystemException, EDAMUserException {
+    private EDAMDemo(String token) throws TException, EDAMSystemException, EDAMUserException {
         // Set up the UserStore client and check that we can speak to the server
         EvernoteAuth evernoteAuth = new EvernoteAuth(EvernoteService.SANDBOX, token);
         ClientFactory factory = new ClientFactory(evernoteAuth);
-        userStore = factory.createUserStoreClient();
+        /**************************************************************************
+         You shouldn't need to change anything below here to run sample code *
+         */UserStoreClient userStore = factory.createUserStoreClient();
 
         boolean versionOk = userStore.checkVersion("Evernote EDAMDemo (Java)",
                 com.evernote.edam.userstore.Constants.EDAM_VERSION_MAJOR,
@@ -350,7 +347,7 @@ public class EDAMDemo {
     /**
      * Helper method to convert a byte array to a hexadecimal string.
      */
-    public static String bytesToHex(byte[] bytes) {
+    private static String bytesToHex(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
         for (byte hashByte : bytes) {
             int intVal = 0xff & hashByte;

@@ -15,18 +15,21 @@ import java.util.List;
 import java.util.StringTokenizer;
 
 /**
- * Created by marcelg on 31/12/16 as Appium PoC.
+ * Notebookaccessor is used to private an interface to Evernote, which does not lead the business code to deal with all of the Evernote Data Structure.
+ * So you can Evernote just ask for certain numbers and interpret them, or ask for e set of notes with tags to work with them. You don't need to know how Evernote works to create code for exploratory testing visualisation.
  */
+@SuppressWarnings("WeakerAccess")
 public class NotebookAccessor {
 
     private Notebook notebook ;
-    private NoteStoreClient noteStore ;
+    private final NoteStoreClient noteStore ;
 
     public NotebookAccessor(NoteStoreClient noteStore, String notebookName) throws EDAMUserException, TException, EDAMSystemException, EDAMNotFoundException {
         this.noteStore = noteStore ;
         setNotebookByName(notebookName);
     }
 
+    @SuppressWarnings("WeakerAccess")
     public void setNotebookByName(String notebookName) throws TException, EDAMUserException, EDAMSystemException, EDAMNotFoundException {
         List<Notebook> notebooks = noteStore.listNotebooks() ;
 
@@ -41,9 +44,9 @@ public class NotebookAccessor {
     }
 
 
-    public int countNotesWithTags(String tagsString, String delimiter, boolean withTrash) throws EDAMUserException, EDAMSystemException, TException, EDAMNotFoundException {
+    public int countNotesWithTags(String tagsString) throws EDAMUserException, EDAMSystemException, TException, EDAMNotFoundException {
 
-        StringTokenizer tags = new StringTokenizer(tagsString, delimiter);
+        StringTokenizer tags = new StringTokenizer(tagsString, ",");
 
         List<String> tagGuids = new ArrayList<String>() ;
 
@@ -51,14 +54,14 @@ public class NotebookAccessor {
         filter.setNotebookGuid(notebook.getGuid());
 
         if (tags.countTokens() == 0) {
-            NoteCollectionCounts noteCollectionCounts = noteStore.findNoteCounts(filter, withTrash) ;
-            return noteCollectionCounts.getNotebookCounts().get(notebook.getGuid()).intValue() ;
+            NoteCollectionCounts noteCollectionCounts = noteStore.findNoteCounts(filter, false) ;
+            return noteCollectionCounts.getNotebookCounts().get(notebook.getGuid());
         }
 
         List<Tag> tagList = noteStore.listTags() ;
 
         for (Tag tag: tagList) {
-            tags = new StringTokenizer(tagsString, delimiter) ;
+            tags = new StringTokenizer(tagsString, ",") ;
             while (tags.hasMoreTokens()) {
 
                 if(tag.getName().equalsIgnoreCase(tags.nextToken())) {
@@ -68,8 +71,8 @@ public class NotebookAccessor {
         }
 
         filter.setTagGuids(tagGuids);
-        NoteCollectionCounts noteCollectionCounts = noteStore.findNoteCounts(filter, withTrash) ;
-        return noteCollectionCounts.getNotebookCounts().get(notebook.getGuid()).intValue() ;
+        NoteCollectionCounts noteCollectionCounts = noteStore.findNoteCounts(filter, false) ;
+        return noteCollectionCounts.getNotebookCounts().get(notebook.getGuid());
 
     }
 }

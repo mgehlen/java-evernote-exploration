@@ -10,7 +10,7 @@ import com.evernote.thrift.TException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
-public final class NoteStoreFetcher {
+final class NoteStoreFetcher {
 
     private NoteStoreFetcher() {}
 
