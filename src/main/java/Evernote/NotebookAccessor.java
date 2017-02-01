@@ -6,6 +6,8 @@ import com.evernote.edam.error.EDAMSystemException;
 import com.evernote.edam.error.EDAMUserException;
 import com.evernote.edam.notestore.NoteCollectionCounts;
 import com.evernote.edam.notestore.NoteFilter;
+import com.evernote.edam.notestore.NoteList;
+import com.evernote.edam.type.Note;
 import com.evernote.edam.type.Notebook;
 import com.evernote.edam.type.Tag;
 import com.evernote.thrift.TException;
@@ -43,36 +45,74 @@ public class NotebookAccessor {
         throw new  EDAMNotFoundException() ;
     }
 
+    public int countNotesWithTags(String searchTags) throws EDAMUserException, EDAMSystemException, TException, EDAMNotFoundException {
 
-    public int countNotesWithTags(String tagsString) throws EDAMUserException, EDAMSystemException, TException, EDAMNotFoundException {
+        StringTokenizer tagsFromSearchTerm = new StringTokenizer(searchTags, ",");
 
-        StringTokenizer tags = new StringTokenizer(tagsString, ",");
+        if (tagsFromSearchTerm.countTokens() == 0) {
+            return getNoteCountForFilter(emptyFilterForNotbook()) ;
+        }
 
-        List<String> tagGuids = new ArrayList<String>() ;
+        return getNoteCountForFilter(filterForSearchTags(searchTags)) ;
+    }
+
+    private NoteFilter emptyFilterForNotbook() {
 
         NoteFilter filter = new NoteFilter();
         filter.setNotebookGuid(notebook.getGuid());
+        return filter ;
+    }
 
-        if (tags.countTokens() == 0) {
-            NoteCollectionCounts noteCollectionCounts = noteStore.findNoteCounts(filter, false) ;
-            return noteCollectionCounts.getNotebookCounts().get(notebook.getGuid());
+    private int getNoteCountForFilter(NoteFilter filter) throws EDAMUserException, EDAMSystemException, TException, EDAMNotFoundException {
+
+        NoteCollectionCounts noteCollectionCounts = noteStore.findNoteCounts(filter, false) ;
+        return noteCollectionCounts.getNotebookCounts().get(notebook.getGuid());
+    }
+
+    private List<String> getNotesForFilter(NoteFilter filter) throws EDAMUserException, EDAMSystemException, TException, EDAMNotFoundException {
+
+        List<String> notes = new ArrayList<>() ;
+
+        NoteList noteList = noteStore.findNotes(filter, 0, 100) ;
+        List<Note> notesFromStore = noteList.getNotes() ;
+
+        for (Note note : notesFromStore) {
+            notes.add(note.getContent()) ;
         }
 
-        List<Tag> tagList = noteStore.listTags() ;
+        return notes ;
 
-        for (Tag tag: tagList) {
-            tags = new StringTokenizer(tagsString, ",") ;
-            while (tags.hasMoreTokens()) {
+    }
 
-                if(tag.getName().equalsIgnoreCase(tags.nextToken())) {
-                    tagGuids.add(tag.getGuid()) ;
+    private NoteFilter filterForSearchTags(String searchTags) throws TException, EDAMUserException, EDAMSystemException {
+
+        List<String> tagGuids = new ArrayList<>() ;
+        List<Tag> storeTagList = noteStore.listTags() ;
+
+        for (Tag tagFromStore: storeTagList) {
+            StringTokenizer tagsFromSearchTerm = new StringTokenizer(searchTags, ",") ;
+            while (tagsFromSearchTerm.hasMoreTokens()) {
+
+                if(tagFromStore.getName().equalsIgnoreCase(tagsFromSearchTerm.nextToken())) {
+                    tagGuids.add(tagFromStore.getGuid()) ;
                 }
             }
         }
 
+        NoteFilter filter = emptyFilterForNotbook();
         filter.setTagGuids(tagGuids);
-        NoteCollectionCounts noteCollectionCounts = noteStore.findNoteCounts(filter, false) ;
-        return noteCollectionCounts.getNotebookCounts().get(notebook.getGuid());
 
+        return filter;
+    }
+
+    public List<String> getNotesWithTags(String searchTags) throws EDAMUserException, EDAMSystemException, EDAMNotFoundException, TException {
+
+        StringTokenizer tagsFromSearchTerm = new StringTokenizer(searchTags, ",");
+
+        if (tagsFromSearchTerm.countTokens() == 0) {
+            return getNotesForFilter(emptyFilterForNotbook()) ;
+        }
+
+        return getNotesForFilter(filterForSearchTags(searchTags)) ;
     }
 }

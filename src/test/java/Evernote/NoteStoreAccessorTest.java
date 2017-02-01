@@ -8,6 +8,7 @@ import com.evernote.edam.notestore.NoteFilter;
 import com.evernote.edam.type.Notebook;
 import com.evernote.edam.type.Tag;
 import com.evernote.thrift.TException;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -23,19 +24,24 @@ public class NoteStoreAccessorTest {
 
     private NotebookAccessor noteBookAccessor;
 
-    private final NoteStoreClient noteStore = mock(NoteStoreClient.class) ;
+    private NoteStoreClient noteStore ;
     private final TestDataCreator testData = new TestDataCreator() ;
+
+    @BeforeMethod
+    private void mockNoteStore(){
+        noteStore = mock(NoteStoreClient.class) ;
+    }
 
     @Test
     public void checkNotebookIsSet() throws TException, EDAMUserException, EDAMSystemException, EDAMNotFoundException {
 
-        List<Notebook> notebooks = testData.createThreeTestNotebooks() ;
+        List<Notebook> notebooks = testData.createTestNotbooks(3) ;
         when(noteStore.listNotebooks()).thenReturn(notebooks);
 
         noteBookAccessor = new NotebookAccessor(noteStore,notebooks.get(2).getName());
 
-        verify(noteStore, times(1)).listNotebooks() ;
-        verify(noteStore, times(1)).getNotebook(notebooks.get(2).getGuid()) ;
+        verify(noteStore).listNotebooks() ;
+        verify(noteStore).getNotebook(notebooks.get(2).getGuid()) ;
 
     }
 
@@ -48,8 +54,8 @@ public class NoteStoreAccessorTest {
 
         noteBookAccessor = new NotebookAccessor(noteStore,notebooks.get(0).getName());
 
-        verify(noteStore, times(1)).listNotebooks() ;
-        verify(noteStore, times(1)).getNotebook(notebooks.get(0).getGuid()) ;
+        verify(noteStore).listNotebooks() ;
+        verify(noteStore).getNotebook(notebooks.get(0).getGuid()) ;
 
     }
 
@@ -65,46 +71,90 @@ public class NoteStoreAccessorTest {
     @Test(dataProvider = "tagListsToFilterFor")
     public void checkFilteringForTags(String filterList, int numberOfTags) throws TException, EDAMUserException, EDAMSystemException, EDAMNotFoundException {
 
-        List<Notebook> notebooks = testData.createTestNotebook() ;
         List<Tag> tags = testData.createTestTags(numberOfTags) ;
+        Notebook notebook = setUpNotebookWithTags(tags);
+        NoteFilter referenceFilter = setReferenceFilter(notebook.getGuid(), tags) ;
 
+        noteBookAccessor = new NotebookAccessor(noteStore, notebook.getName());
+        noteBookAccessor.countNotesWithTags(filterList) ;
+
+        verify(noteStore).findNoteCounts(referenceFilter, false) ;
+    }
+
+    @Test(dataProvider = "filtersToShowAll")
+    public void checkNoFiltering(String filterList) throws TException, EDAMUserException, EDAMSystemException, EDAMNotFoundException {
+
+        Notebook notebook = setUpNotebook();
+        NoteFilter referenceFilter = new NoteFilter();
+        referenceFilter.setNotebookGuid(notebook.getGuid());
+
+        noteBookAccessor = new NotebookAccessor(noteStore, notebook.getName());
+        noteBookAccessor.countNotesWithTags(filterList) ;
+
+        verify(noteStore, never()).listTags() ;
+        verify(noteStore).findNoteCounts(referenceFilter, false) ;
+    }
+
+    @Test(dataProvider = "tagListsToFilterFor")
+    public void checkNotesRetrievingWithFilter(String filterList, int numberOfTags) throws EDAMUserException, TException, EDAMSystemException, EDAMNotFoundException {
+
+        List<Tag> tags = testData.createTestTags(numberOfTags) ;
+        Notebook notebook = setUpNotebookWithTags(tags);
+        NoteFilter referenceFilter = setReferenceFilter(notebook.getGuid(), tags) ;
+
+        noteBookAccessor = new NotebookAccessor(noteStore, notebook.getName());
+        noteBookAccessor.getNotesWithTags(filterList) ;
+
+        verify(noteStore).findNotes(referenceFilter, 0, 100) ;
+    }
+
+    @Test(dataProvider = "filtersToShowAll")
+    public void checkNotesRetrievingWithoutFilter(String filterList) throws EDAMUserException, TException, EDAMSystemException, EDAMNotFoundException {
+
+        Notebook notebook = setUpNotebook();
+        NoteFilter referenceFilter = new NoteFilter();
+        referenceFilter.setNotebookGuid(notebook.getGuid());
+
+        noteBookAccessor = new NotebookAccessor(noteStore, notebook.getName());
+        noteBookAccessor.getNotesWithTags(filterList) ;
+
+        verify(noteStore, never()).listTags() ;
+        verify(noteStore).findNotes(referenceFilter, 0, 100) ;
+    }
+
+
+    private Notebook setUpNotebookWithTags(List<Tag> tags) throws TException, EDAMUserException, EDAMSystemException, EDAMNotFoundException {
+
+        when(noteStore.listTags()).thenReturn(tags) ;
+        return setUpNotebook() ;
+    }
+
+    private Notebook setUpNotebook() throws TException, EDAMUserException, EDAMSystemException, EDAMNotFoundException {
+
+        List<Notebook> notebooks = testData.createTestNotebook() ;
         when(noteStore.listNotebooks()).thenReturn(notebooks);
         when(noteStore.getNotebook(anyString())).thenReturn(notebooks.get(0)) ;
+        when(noteStore.findNotes(any(NoteFilter.class),anyInt(),anyInt())).thenReturn(testData.createTestNoteList(6)) ;
         when(noteStore.findNoteCounts(any(NoteFilter.class),eq(false))).thenReturn(testData.createTestNoteCollectionCounts(notebooks.get(0).getGuid())) ;
-        when(noteStore.listTags()).thenReturn(tags) ;
+
+        return notebooks.get(0) ;
+    }
+
+    private NoteFilter setReferenceFilter(String notebookGuid, List<Tag> tags) {
 
         NoteFilter filter = new NoteFilter() ;
-        filter.setNotebookGuid(notebooks.get(0).getGuid());
+        filter.setNotebookGuid(notebookGuid);
 
-        List<String> tagGuids = new ArrayList<String>() ;
+        List<String> tagGuids = new ArrayList<>() ;
         for (Tag tag : tags) {
             tagGuids.add(tag.getGuid());
         }
         filter.setTagGuids(tagGuids);
 
-        noteBookAccessor = new NotebookAccessor(noteStore, notebooks.get(0).getName());
-        noteBookAccessor.countNotesWithTags(filterList) ;
+        return filter ;
 
-        verify(noteStore, times(1)).findNoteCounts(filter, false) ;
     }
 
-    @Test(dataProvider = "filtersToShowAll")
-    public void checkNoFilteringForTags(String filterList) throws TException, EDAMUserException, EDAMSystemException, EDAMNotFoundException {
-
-        List<Notebook> notebooks = testData.createTestNotebook() ;
-        when(noteStore.listNotebooks()).thenReturn(notebooks);
-        when(noteStore.getNotebook(anyString())).thenReturn(notebooks.get(0)) ;
-        when(noteStore.findNoteCounts(any(NoteFilter.class),eq(false))).thenReturn(testData.createTestNoteCollectionCounts(notebooks.get(0).getGuid())) ;
-
-        noteBookAccessor = new NotebookAccessor(noteStore, notebooks.get(0).getName());
-        noteBookAccessor.countNotesWithTags(filterList) ;
-
-        NoteFilter filter = new NoteFilter();
-        filter.setNotebookGuid(notebooks.get(0).getGuid());
-
-        verify(noteStore, never()).listTags() ;
-        verify(noteStore, times(1)).findNoteCounts(filter, false) ;
-    }
 
     @DataProvider
     private static Object[][] tagListsToFilterFor() {

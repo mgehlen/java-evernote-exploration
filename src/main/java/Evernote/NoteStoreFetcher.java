@@ -12,8 +12,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 final class NoteStoreFetcher {
 
-    private NoteStoreFetcher() {}
-
     public static NoteStoreClient fetchNoteStore(String authToken) throws TException, EDAMUserException, EDAMSystemException {
 
         return authenticate(authToken).createNoteStoreClient() ;
@@ -31,7 +29,6 @@ final class NoteStoreFetcher {
     }
 
     private static void failForWrongClientVersion(ClientFactory clientFactory) throws TException {
-
 
             boolean isVersionOk = clientFactory.createUserStoreClient().checkVersion("Exploratory Visualizer",
                     com.evernote.edam.userstore.Constants.EDAM_VERSION_MAJOR,
